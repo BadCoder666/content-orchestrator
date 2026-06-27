@@ -12,7 +12,7 @@ IMPORTANT — how you hand off data:
 You run in a sandbox whose view of the project folder is a FUSE mount, and SQLite
 writes over it fail ("disk I/O error"). So you must NOT run store_signal or touch
 signals.db. Instead you DROP a JSON file into the spool directory
-`/Users/YOURNAME/claude-orchestrator/orchestrator/linkedin_inbox/`
+`/Users/YOURNAME/content-orchestrator/orchestrator/linkedin_inbox/`
 (creating files over the mount works fine). The native dispatcher heartbeat drains
 that spool into signals.db within ~12 min, through the exact same rank+dedup path.
 

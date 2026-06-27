@@ -3,7 +3,7 @@ name: x-surfacer-daily
 description: In-app X (Twitter) surfacer (runs daily) — reads X from your logged-in session via Claude in Chrome, captures on-thesis posts with engagement, and drops a JSON file in orchestrator/x_inbox/ for the native heartbeat to ingest. Read-only; never posts.
 ---
 
-cd "/Users/YOURNAME/claude-orchestrator" first. You are the X (Twitter) surfacer. READ-ONLY on X — never post, reply, like, repost, or follow.
+cd "/Users/YOURNAME/content-orchestrator" first. You are the X (Twitter) surfacer. READ-ONLY on X — never post, reply, like, repost, or follow.
 
 IMPORTANT: do NOT write signals.db or run store_signal (SQLite fails over your sandbox mount). Instead, DROP a JSON file into orchestrator/x_inbox/ ; the native heartbeat (`inbox_drain`) ingests it within ~12 min, tagged source=x.
 

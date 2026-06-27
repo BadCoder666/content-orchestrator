@@ -2,11 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>com.example.claude-orchestrator</string>
+  <key>Label</key><string>com.example.content-orchestrator</string>
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/YOURNAME/claude-orchestrator/orchestrator/run_orchestrator.sh</string>
+    <string>/Users/YOURNAME/content-orchestrator/orchestrator/run_orchestrator.sh</string>
   </array>
 
   <!-- One heartbeat every 12 minutes. The dispatcher decides what (if anything)
@@ -16,9 +16,9 @@
        first tick after its time, so a 01:00 job still runs once the Mac wakes. -->
   <key>StartInterval</key><integer>720</integer>
 
-  <key>WorkingDirectory</key><string>/Users/YOURNAME/claude-orchestrator</string>
-  <key>StandardOutPath</key><string>/Users/YOURNAME/Documents/claude-orchestrator/logs/launchd.log</string>
-  <key>StandardErrorPath</key><string>/Users/YOURNAME/Documents/claude-orchestrator/logs/launchd.log</string>
+  <key>WorkingDirectory</key><string>/Users/YOURNAME/content-orchestrator</string>
+  <key>StandardOutPath</key><string>/Users/YOURNAME/Documents/content-orchestrator/logs/launchd.log</string>
+  <key>StandardErrorPath</key><string>/Users/YOURNAME/Documents/content-orchestrator/logs/launchd.log</string>
   <key>RunAtLoad</key><true/>
 </dict>
 </plist>

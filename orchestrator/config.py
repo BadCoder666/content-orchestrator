@@ -38,7 +38,7 @@ SIGNALS_DB = HERE / "signals.db"      # shared scrape store
 DIGEST_INPUT_DIR = HERE / "digest_input"  # native exports ranked signals here as
 #   plain JSON so the in-app (Cowork) drafter can READ them — it can't open
 #   signals.db over its FUSE mount, but file reads work fine.
-LOG_DIR = Path(_env("ORCH_LOG_DIR", str(Path.home() / "Documents" / "claude-orchestrator" / "logs")))
+LOG_DIR = Path(_env("ORCH_LOG_DIR", str(Path.home() / "Documents" / "content-orchestrator" / "logs")))
 
 # External project locations (optional — read/write their existing registers in
 # place). Point these at your own project folders, or leave the defaults if you
@@ -130,4 +130,4 @@ X_HANDLES: list[str] = []
 
 # Reddit requires a unique descriptive UA in their recommended format. Put your
 # own Reddit username here.
-USER_AGENT = _env("REDDIT_USER_AGENT", "macos:claude-orchestrator:v0.1 (by /u/your_username)")
+USER_AGENT = _env("REDDIT_USER_AGENT", "macos:content-orchestrator:v0.1 (by /u/your_username)")

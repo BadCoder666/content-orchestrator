@@ -13,7 +13,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/YOURNAME/claude-orchestrator/orchestrator/wake/arm_wakes.sh</string>
+    <string>/Users/YOURNAME/content-orchestrator/orchestrator/wake/arm_wakes.sh</string>
   </array>
   <key>StartCalendarInterval</key>
   <array>
@@ -26,7 +26,7 @@
       <key>Minute</key><integer>0</integer>
     </dict>
   </array>
-  <key>StandardOutPath</key><string>/Users/YOURNAME/Documents/claude-orchestrator/logs/wake-armer.log</string>
-  <key>StandardErrorPath</key><string>/Users/YOURNAME/Documents/claude-orchestrator/logs/wake-armer.log</string>
+  <key>StandardOutPath</key><string>/Users/YOURNAME/Documents/content-orchestrator/logs/wake-armer.log</string>
+  <key>StandardErrorPath</key><string>/Users/YOURNAME/Documents/content-orchestrator/logs/wake-armer.log</string>
 </dict>
 </plist>

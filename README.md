@@ -1,4 +1,4 @@
-# claude-orchestrator
+# content-orchestrator
 
 A **deterministic, subscription-friendly content orchestrator** for macOS. It scrapes
 signals from Reddit, Substack, X, and LinkedIn on a schedule, ranks them by
@@ -110,7 +110,7 @@ orchestrator/
    python -m orchestrator.verify          # 115 offline checks
    python -m orchestrator.dispatcher --selftest   # overnight-reliability machinery
    ```
-5. **Install the launchd agent** (`orchestrator/com.example.claude-orchestrator.plist`)
+5. **Install the launchd agent** (`orchestrator/com.example.content-orchestrator.plist`)
    — edit the `/Users/YOURNAME/...` paths, then `launchctl load` it.
 6. **Overnight wakes** (macOS laptop, lid closed): see `orchestrator/wake/` — a root
    LaunchDaemon arms RTC wakes and holds the Mac awake with `pmset -a disablesleep`

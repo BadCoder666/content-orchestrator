@@ -10,7 +10,7 @@ but a logged-in browser reads Reddit fine — so you read it in Chrome on your
 subscription and write into the same shared store. You are READ-ONLY: never
 comment, post, vote, or DM.
 
-STORE: /Users/YOURNAME/claude-orchestrator/orchestrator/signals.db
+STORE: /Users/YOURNAME/content-orchestrator/orchestrator/signals.db
 (insert via the CLI below; dedup is by url, so running while the native scraper
 also has Reddit is safe — same thread just upserts).
 

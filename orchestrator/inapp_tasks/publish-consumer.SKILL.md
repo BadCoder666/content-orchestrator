@@ -10,7 +10,7 @@ dropped a request file in the queue. Your only job: execute that approved post i
 browser. You make NO content decisions and you NEVER post anything that isn't a
 `pending` queue file.
 
-QUEUE: /Users/YOURNAME/claude-orchestrator/orchestrator/chrome_queue/
+QUEUE: /Users/YOURNAME/content-orchestrator/orchestrator/chrome_queue/
 Each pending file is JSON: {kind, payload, id, status:"pending"}.
 
 EACH RUN:
