@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+  <title>Punk on the Moon</title>
+  <item>
+    <title>The Space Economy Eats Its Young</title>
+    <link>https://example.substack.com/p/space-economy</link>
+    <description>A wry look at orbital launch costs and the lunar gold rush.</description>
+    <pubDate>Mon, 16 Jun 2025 09:00:00 GMT</pubDate>
+  </item>
+  <item>
+    <title>Why your Shopify catalog confuses robots</title>
+    <link>https://example.substack.com/p/catalog-robots</link>
+    <description>Ecommerce product data, structured for machines.</description>
+    <pubDate>Tue, 17 Jun 2025 09:00:00 GMT</pubDate>
+  </item>
+</channel></rss>

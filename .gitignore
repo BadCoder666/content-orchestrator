@@ -1,0 +1,25 @@
+# Secrets — NEVER commit
+.env
+*.env
+config.json
+
+# Runtime data — generated locally, never commit
+orchestrator/signals.db
+orchestrator/state/
+orchestrator/chrome_queue/*.json
+orchestrator/digest_input/
+orchestrator/linkedin_inbox/
+orchestrator/x_inbox/
+logs/
+*.log
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,21 @@
+{
+  "data": {
+    "children": [
+      {"data": {"title": "How are you handling Schema.org product data for AI shopping agents?",
+                "selftext": "ChatGPT shopping keeps misreading our catalog. JSON-LD tips?",
+                "permalink": "/r/shopify/comments/abc123/schema_product_data/",
+                "author": "merchant_jane", "score": 142, "num_comments": 38,
+                "created_utc": 1750000000}},
+      {"data": {"title": "Best CRM for a bakery?",
+                "selftext": "Unrelated small-business question.",
+                "permalink": "/r/shopify/comments/def456/best_crm/",
+                "author": "baker_bob", "score": 5, "num_comments": 2,
+                "created_utc": 1750000500}},
+      {"data": {"title": "AI Overviews are cannibalizing our product page traffic",
+                "selftext": "Structured data and GEO seem to matter now.",
+                "permalink": "/r/shopify/comments/ghi789/ai_overviews/",
+                "author": "seo_sam", "score": 88, "num_comments": 51,
+                "created_utc": 1750001000}}
+    ]
+  }
+}

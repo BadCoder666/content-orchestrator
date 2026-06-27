@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.example.claude-wake-armer</string>
+  <!-- ROOT LaunchDaemon (/Library/LaunchDaemons, root:wheel) so it may run pmset
+       disablesleep + schedule. Fires TWICE: 00:46 ARM (right after the 00:45
+       `pmset repeat wake`) brings the network up, holds the Mac awake via
+       `pmset -a disablesleep 1`, and arms the backstop + 06:00-08:30 wakes; 02:00
+       DISARM restores normal sleep. Two invocations (not one blocking script) so
+       the hold is released even if the arm run is SIGKILLed. RunAtLoad removed so
+       loading the daemon never triggers a stray hold. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/YOURNAME/claude-orchestrator/orchestrator/wake/arm_wakes.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Hour</key><integer>0</integer>
+      <key>Minute</key><integer>46</integer>
+    </dict>
+    <dict>
+      <key>Hour</key><integer>2</integer>
+      <key>Minute</key><integer>0</integer>
+    </dict>
+  </array>
+  <key>StandardOutPath</key><string>/Users/YOURNAME/Documents/claude-orchestrator/logs/wake-armer.log</string>
+  <key>StandardErrorPath</key><string>/Users/YOURNAME/Documents/claude-orchestrator/logs/wake-armer.log</string>
+</dict>
+</plist>

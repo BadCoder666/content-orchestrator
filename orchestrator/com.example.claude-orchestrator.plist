@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.example.claude-orchestrator</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/YOURNAME/claude-orchestrator/orchestrator/run_orchestrator.sh</string>
+  </array>
+
+  <!-- One heartbeat every 12 minutes. The dispatcher decides what (if anything)
+       is due: the 01:00 daily scrape+draft, the Sunday 01:05 token dashboard,
+       and the 06:00-08:30 approval poller all resolve from this single tick.
+       A tick missed while asleep is harmless: a daily_once job fires on the
+       first tick after its time, so a 01:00 job still runs once the Mac wakes. -->
+  <key>StartInterval</key><integer>720</integer>
+
+  <key>WorkingDirectory</key><string>/Users/YOURNAME/claude-orchestrator</string>
+  <key>StandardOutPath</key><string>/Users/YOURNAME/Documents/claude-orchestrator/logs/launchd.log</string>
+  <key>StandardErrorPath</key><string>/Users/YOURNAME/Documents/claude-orchestrator/logs/launchd.log</string>
+  <key>RunAtLoad</key><true/>
+</dict>
+</plist>
