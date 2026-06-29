@@ -19,6 +19,7 @@ import fcntl
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 from contextlib import contextmanager
@@ -51,6 +52,21 @@ def _display_off() -> None:
                        capture_output=True)
     except Exception:
         pass
+
+
+def _user_idle_seconds() -> float:
+    """Seconds since the last keyboard/mouse (HID) event. Large ⇒ nobody's at the
+    Mac (a genuine scheduled dark-wake); small ⇒ the user is actively using it.
+    On failure returns 0 so we err toward NOT blanking an in-use screen."""
+    try:
+        out = subprocess.run(["/usr/sbin/ioreg", "-c", "IOHIDSystem"],
+                             capture_output=True, text=True, timeout=5).stdout
+        m = re.search(r'"HIDIdleTime"\s*=\s*(\d+)', out)
+        if m:
+            return int(m.group(1)) / 1_000_000_000  # nanoseconds → seconds
+    except Exception:
+        pass
+    return 0.0
 
 
 def _ensure_network() -> None:
@@ -118,11 +134,14 @@ def _setup_logging() -> None:
 
 def tick(*, dry_run: bool = False, only: str | None = None) -> list[dict]:
     now = now_local()
-    # On a scheduled dark-wake, force the display off immediately and make sure we
-    # have internet before any job runs. Gated to the wake windows so a normal
-    # daytime tick never blanks the screen or churns Wi-Fi on you.
+    # On a scheduled dark-wake, ensure internet before any job runs, and keep the
+    # screen dark — but ONLY if nobody's using the Mac. Window B (06:00–08:30)
+    # often overlaps early-morning active use; blanking the screen every ~12 min
+    # mid-use was a bug. >300s since the last key/mouse event ⇒ a genuine dark
+    # wake (asleep/away), safe to blank; otherwise leave the display alone.
     if not dry_run and _in_dark_window(now):
-        _display_off()
+        if _user_idle_seconds() > 300:
+            _display_off()
         _ensure_network()
     ledger = Ledger()
     # (Keep-awake is handled by the root wake-armer's `pmset -a disablesleep`, not
