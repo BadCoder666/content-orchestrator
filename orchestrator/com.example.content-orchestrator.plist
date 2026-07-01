@@ -17,8 +17,8 @@
   <key>StartInterval</key><integer>720</integer>
 
   <key>WorkingDirectory</key><string>/Users/YOURNAME/content-orchestrator</string>
-  <key>StandardOutPath</key><string>/Users/YOURNAME/Documents/content-orchestrator/logs/launchd.log</string>
-  <key>StandardErrorPath</key><string>/Users/YOURNAME/Documents/content-orchestrator/logs/launchd.log</string>
+  <key>StandardOutPath</key><string>/Users/YOURNAME/content-orchestrator/logs/launchd.log</string>
+  <key>StandardErrorPath</key><string>/Users/YOURNAME/content-orchestrator/logs/launchd.log</string>
   <key>RunAtLoad</key><true/>
 </dict>
 </plist>

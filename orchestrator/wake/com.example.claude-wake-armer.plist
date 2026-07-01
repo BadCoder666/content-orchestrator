@@ -26,7 +26,7 @@
       <key>Minute</key><integer>0</integer>
     </dict>
   </array>
-  <key>StandardOutPath</key><string>/Users/YOURNAME/Documents/content-orchestrator/logs/wake-armer.log</string>
-  <key>StandardErrorPath</key><string>/Users/YOURNAME/Documents/content-orchestrator/logs/wake-armer.log</string>
+  <key>StandardOutPath</key><string>/Users/YOURNAME/content-orchestrator/logs/wake-armer.log</string>
+  <key>StandardErrorPath</key><string>/Users/YOURNAME/content-orchestrator/logs/wake-armer.log</string>
 </dict>
 </plist>

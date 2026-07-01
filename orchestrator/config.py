@@ -38,7 +38,10 @@ SIGNALS_DB = HERE / "signals.db"      # shared scrape store
 DIGEST_INPUT_DIR = HERE / "digest_input"  # native exports ranked signals here as
 #   plain JSON so the in-app (Cowork) drafter can READ them — it can't open
 #   signals.db over its FUSE mount, but file reads work fine.
-LOG_DIR = Path(_env("ORCH_LOG_DIR", str(Path.home() / "Documents" / "content-orchestrator" / "logs")))
+# Keep logs OUT of ~/Documents — it's TCC-protected on macOS and a launchd agent
+# can't write there without Full Disk Access (fails with EX_CONFIG). Project-local
+# by default.
+LOG_DIR = Path(_env("ORCH_LOG_DIR", str(PROJECT_ROOT / "logs")))
 
 # External project locations (optional — read/write their existing registers in
 # place). Point these at your own project folders, or leave the defaults if you
