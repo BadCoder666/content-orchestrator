@@ -109,9 +109,49 @@ PROJECTS = ("company", "newsletter")
 # Drafting backend. "inapp" (default): the native job only scrapes+ranks and
 # drops a ready-marker; a Claude-app Cowork task (inapp_tasks/draft-generator)
 # does the in-voice drafting + Slack delivery on a subscription (no API billing).
-# "api": the native job drafts via draft.py/Anthropic API and posts itself —
-# fully headless/unattended (small per-run API cost; needs ANTHROPIC_API_KEY).
+# "api": the native job drafts via draft.py AND posts to Slack itself — fully
+# headless/unattended (small per-run API cost). Provider-agnostic via any
+# OpenAI-compatible endpoint.
 DRAFT_BACKEND = _env("DRAFT_BACKEND", "inapp")
+# Ordered provider CHAIN for API drafting: draft.py tries them in order and falls
+# through to the next on any error, so the first is primary and the rest are
+# automatic fallbacks. Only providers whose key is set are used. Override the
+# order via DRAFT_PROVIDERS="kimi,gemini" (or add "anthropic").
+DRAFT_PROVIDERS = [p.strip() for p in
+                   _env("DRAFT_PROVIDERS", "gemini,kimi").split(",") if p.strip()]
+_DRAFT_SPECS = {
+    # name: (openai-compatible base_url, default model, key env var, extra create() kwargs)
+    # NOTE: Gemini 2.5-flash is a THINKING model — over the OpenAI-compat endpoint
+    # it spends the whole max_tokens budget on internal reasoning and returns the
+    # draft TRUNCATED (silently, finish_reason=length) unless you pass
+    # reasoning_effort="none". Kimi/Anthropic don't take the param, so it's
+    # attached per-provider.
+    "gemini":    ("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-2.5-flash", "GEMINI_API_KEY", {"reasoning_effort": "none"}),
+    "kimi":      ("https://api.moonshot.ai/v1", "kimi-k2-0905-preview", "MOONSHOT_API_KEY", {}),
+    "anthropic": ("https://api.anthropic.com/v1/", "claude-opus-4-8", "ANTHROPIC_API_KEY", {}),
+}
+
+
+def draft_providers() -> list[dict]:
+    """The USABLE drafting providers in priority order — each with a key set — as
+    {name, base_url, model, api_key, extra}. draft.py tries them in order and
+    falls through on failure. Per-provider overrides via env: DRAFT_<NAME>_MODEL /
+    _BASE_URL / _KEY (e.g. DRAFT_GEMINI_MODEL=gemini-2.5-pro)."""
+    out = []
+    for name in DRAFT_PROVIDERS:
+        spec = _DRAFT_SPECS.get(name)
+        if not spec:
+            continue
+        up = name.upper()
+        key = os.environ.get(f"DRAFT_{up}_KEY", "") or os.environ.get(spec[2], "")
+        if not key:
+            continue
+        out.append({"name": name,
+                    "base_url": _env(f"DRAFT_{up}_BASE_URL", spec[0]),
+                    "model": _env(f"DRAFT_{up}_MODEL", spec[1]),
+                    "api_key": key,
+                    "extra": spec[3]})  # per-provider create() kwargs (e.g. reasoning_effort)
+    return out
 
 # --- Source registries (EXAMPLE values — replace) ----------------------------
 # Reddit subs to watch (public search.json — no Chrome).

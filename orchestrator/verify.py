@@ -380,6 +380,61 @@ def test_newsletter_publish_maps_to_angle():
               bool(gal) and gal[0].get("draft_file", "").endswith("angle4.md"), str(gal))
 
 
+def test_parse_newsletter_picks():
+    """The digest-pick parser must read bare numbers (→ all channels), single
+    'N to CH', and multi-clause 'N to CH, M to CH and CH', and drop 'skip'."""
+    f = jobs._parse_newsletter_picks
+    allc = ["linkedin", "substack", "x"]
+    check("skip → nothing", f("skip") == [])
+    check("bare number → all channels", f("4") == [(4, allc)], str(f("4")))
+    check("N to CH → just that channel", f("4 to x") == [(4, ["x"])], str(f("4 to x")))
+    check("two bare numbers", f("4 and 5") == [(4, allc), (5, allc)], str(f("4 and 5")))
+    multi = f("4 to x, 5 to x and substack")
+    check("multi-clause picks", multi == [(4, ["x"]), (5, ["x", "substack"])], str(multi))
+
+
+def test_newsletter_article_drafter_on_pick():
+    """On the api backend, a user pick ('4 to x') to the digest must draft THAT
+    angle's article, write newsletter-draft-<day>-angle4.md with the chosen
+    channels, post it in the publish-gate's expected shape, and never redraft."""
+    import json as _json
+    with tempfile.TemporaryDirectory() as d:
+        orig = (config.STATE_DIR, config.DRAFT_BACKEND, config.draft_providers,
+                jobs.slack_io.read_channel_deep, jobs.slack_io.has_internet,
+                jobs.slack_io.send_message, jobs.draft.newsletter_article)
+        config.STATE_DIR = Path(d)
+        config.DRAFT_BACKEND = "api"
+        config.draft_providers = lambda: [{"name": "gemini", "base_url": "", "model": "m", "api_key": "k"}]
+        now = _dt(2025, 6, 16, 7, 0)
+        stamp = now.strftime("%y%m%d")
+        (Path(d) / f"newsletter-angles-{stamp}.json").write_text(_json.dumps(
+            [{"n": 4, "hook": "h4", "angle": "a4", "source": "u4"},
+             {"n": 5, "hook": "h5", "angle": "a5", "source": "u5"}]))
+        pick_ts = str(now.timestamp() - 1800)
+        sent, arts = [], []
+        jobs.slack_io.read_channel_deep = lambda *a, **k: [{"text": "4 to x", "ts": pick_ts}]
+        jobs.slack_io.has_internet = lambda *a, **k: True
+        jobs.slack_io.send_message = lambda ch, text, **k: sent.append(text) or {"ok": True}
+        jobs.draft.newsletter_article = lambda idea, **k: arts.append(idea) or "# Orbital Taxis\nBody text."
+        led = Ledger(Path(d) / "l.json")
+        try:
+            r1 = jobs.run_newsletter_article_drafter({"dry_run": False, "now": now, "ledger": led})
+            r2 = jobs.run_newsletter_article_drafter({"dry_run": False, "now": now, "ledger": led})
+        finally:
+            (config.STATE_DIR, config.DRAFT_BACKEND, config.draft_providers,
+             jobs.slack_io.read_channel_deep, jobs.slack_io.has_internet,
+             jobs.slack_io.send_message, jobs.draft.newsletter_article) = orig
+        check("drafts the picked angle once", r1.get("drafted") == [4], str(r1))
+        check("drafts from the picked angle's data", bool(arts) and arts[0].get("angle") == "a4", str(arts))
+        df = Path(d) / f"newsletter-draft-{stamp}-angle4.md"
+        check("writes the angle's draft file", df.exists())
+        check("draft carries the chosen channels",
+              df.exists() and "channels: [x]" in df.read_text(), df.read_text() if df.exists() else "")
+        check("posts in the publish-gate shape",
+              any("Newsletter draft ready (angle 4)" in s for s in sent), str(sent))
+        check("idempotent: second run redrafts nothing", r2.get("drafted") == ["no new picks"], str(r2))
+
+
 def test_health_alert():
     """The morning fail-loud backstop must (a) nudge Slack when the draft is
     missing, (b) alert when the digest is missing, (c) stay silent when healthy,
@@ -718,7 +773,8 @@ def run_offline() -> bool:
               test_scraper_parse, test_reddit_oauth, test_chrome_queue, test_schedule, test_ledger_seen,
               test_poller_idempotency, test_read_channel_deep_folds_threads,
               test_poller_enriches_payload, test_poller_recency_guard,
-              test_newsletter_publish_maps_to_angle, test_health_alert, test_dark_window,
+              test_newsletter_publish_maps_to_angle, test_parse_newsletter_picks,
+              test_newsletter_article_drafter_on_pick, test_health_alert, test_dark_window,
               test_daily_delegates_inapp,
               test_friday_digests, test_prev_velocity_same_day, test_prev_velocity_tz_boundary,
               test_surfacer_repush_peaks,

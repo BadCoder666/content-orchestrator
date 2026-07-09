@@ -44,6 +44,48 @@ def _approved_shortlist_items(numbers, now) -> list[dict]:
     return [it for it in items if isinstance(it, dict) and it.get("n") in want]
 
 
+def _format_newsletter_digest(angles: list[dict]) -> str:
+    """Render structured angles (from draft.newsletter_angles) into the Slack
+    digest. Leads with 🌙 (a bot marker) so the poller never mistakes it for a
+    pick."""
+    lines = ["🌙 *Digest*", ""]
+    for a in angles:
+        lines.append(f"*{a.get('n')}.* {a.get('hook', '')}")
+        if a.get("angle"):
+            lines.append(f"    ↳ {a['angle']}")
+        if a.get("source"):
+            lines.append(f"    {a['source']}")
+        lines.append("")
+    lines.append("Reply a number to draft (defaults to all channels — add 'to x' / 'to substack' / "
+                 "'to linkedin' to limit, e.g. `3 to substack`), or 'skip' to pass.")
+    return "\n".join(lines)
+
+
+def _parse_newsletter_picks(text: str) -> list[tuple[int, list[str]]]:
+    """Parse a digest pick reply → [(angle_n, [channels])]. Handles '4', '4 5',
+    '4 to x', '4 to x, 5 to x and substack', 'skip'. Bare number → all channels."""
+    t = (text or "").strip().lower()
+    if not t or t in ("skip", "pass"):
+        return []
+    out = []
+    for clause in re.split(r"[,;]|\band\b(?=\s*\d)", t):
+        m = re.match(r"\s*(\d+)\s*(?:to\s+(.+))?$", clause.strip())
+        if not m:
+            continue
+        spec = m.group(2) or ""
+        chans = [c for c in ("x", "substack", "linkedin") if c in spec]
+        out.append((int(m.group(1)), chans or ["linkedin", "substack", "x"]))
+    return out
+
+
+def _first_line(text: str) -> str:
+    for line in (text or "").splitlines():
+        clean = line.strip().lstrip("#* ").strip()
+        if clean:
+            return clean[:120]
+    return "Untitled"
+
+
 # --- job: token usage dashboard (deterministic; subprocess) -----------------
 def run_token_dashboard(ctx: dict) -> dict:
     if ctx.get("dry_run"):
@@ -118,10 +160,10 @@ def run_daily_scrape_draft(ctx: dict) -> dict:
         a mid-run failure (it isn't ledger-marked until success) never re-posts
         a digest it already sent."""
         key = f"daily:{step}:{day}"
-        # Safety: without an API key draft.py returns a stub — never post that
-        # placeholder to a real Slack channel. (Loading the agent before the key
-        # is set is therefore harmless.)
-        if not dry and not config.ANTHROPIC_API_KEY:
+        # Safety: with no drafting provider configured draft.py returns a stub —
+        # never post that placeholder to a real Slack channel. (Loading the agent
+        # before any key is set is therefore harmless.)
+        if not dry and not config.draft_providers():
             summary["posted"].append(f"{step}:skipped-no-api-key")
             return
         if ledger and not dry and ledger.seen(key):
@@ -137,8 +179,19 @@ def run_daily_scrape_draft(ctx: dict) -> dict:
         gx = store.signals_for(conn, "newsletter")
         bh = store.signals_for(conn, "company", statuses=["Accelerating", "Watching"])
 
-    # 3) draft (Claude API) + deliver to Slack — each step idempotent per day
-    post_once("newsletter_digest", config.NEWSLETTER_SLACK_CHANNEL, draft.newsletter_digest(gx, dry_run=dry))
+    # 3) draft (LLM API) + deliver to Slack — each step idempotent per day.
+    # Newsletter: draft STRUCTURED angles and persist them, so the headless
+    # article-drafter can later map a pick number ("4 to x") back to its angle.
+    # Post the formatted digest; if the model didn't return parseable JSON, fall
+    # back to the free-text digest (article-on-pick just won't be available then).
+    angles = draft.newsletter_angles(gx, dry_run=dry)
+    if angles:
+        if not dry:
+            (config.STATE_DIR / f"newsletter-angles-{now.strftime('%y%m%d')}.json").write_text(
+                json.dumps(angles, ensure_ascii=False), encoding="utf-8")
+        post_once("newsletter_digest", config.NEWSLETTER_SLACK_CHANNEL, _format_newsletter_digest(angles))
+    else:
+        post_once("newsletter_digest", config.NEWSLETTER_SLACK_CHANNEL, draft.newsletter_digest(gx, dry_run=dry))
     post_once("company_shortlist", config.company_channel(), draft.company_shortlist(bh, dry_run=dry))
 
     if now.weekday() == 1:  # Tuesday: one original weekly post draft
@@ -287,11 +340,80 @@ def run_health_alert(ctx: dict) -> dict:
     return {"job": "health_alert", "issues": issues or ["healthy"]}
 
 
+# --- job: headless article-drafter (article-on-pick) ------------------------
+def run_newsletter_article_drafter(ctx: dict) -> dict:
+    """Headless replacement for the Cowork 'article-drafter': when the user replies
+    a pick to the morning digest ("4", "4 to x", "4 to x, 5 to substack"), load
+    that angle from today's saved angles, draft the article via the LLM, write it
+    as a `newsletter-draft-<day>-angleN.md` with `channels:` frontmatter, and post
+    it as "✍️ Newsletter draft ready (angle N)…" — the exact shape the approval-
+    poller's publish gate already recognises. Idempotent per angle (ledger-keyed),
+    so it drafts each pick once no matter how many ticks see the reply. Only active
+    on the api backend; under "inapp" the Cowork task still owns this."""
+    if config.DRAFT_BACKEND != "api":
+        return {"job": "newsletter_article_drafter", "note": "inapp backend"}
+    dry = ctx.get("dry_run", False)
+    if not dry and not config.draft_providers():
+        # api backend but no key yet → newsletter_article would return a stub;
+        # never post that to Slack (same guard as the digest's post_once).
+        return {"job": "newsletter_article_drafter", "note": "no provider configured"}
+    now = ctx["now"]
+    ledger = ctx.get("ledger")
+    stamp = now.strftime("%y%m%d")
+    angles_file = config.STATE_DIR / f"newsletter-angles-{stamp}.json"
+    if not angles_file.exists():
+        return {"job": "newsletter_article_drafter", "note": "no angles today"}
+    if not dry and not slack_io.has_internet():
+        return {"job": "newsletter_article_drafter", "note": "no internet"}
+    try:
+        by_n = {int(a["n"]): a for a in json.loads(angles_file.read_text(encoding="utf-8"))
+                if isinstance(a, dict) and "n" in a}
+    except (OSError, ValueError, json.JSONDecodeError):
+        return {"job": "newsletter_article_drafter", "note": "angles unreadable"}
+
+    cutoff = now.timestamp() - 36 * 3600  # ignore stale replies (replayed history)
+    drafted: list[int] = []
+    for m in slack_io.read_channel_deep(config.NEWSLETTER_SLACK_CHANNEL, dry_run=dry):
+        txt, ts = m.get("text", ""), m.get("ts", "")
+        if not txt or not ts or slack_io.is_bot_message(txt):
+            continue
+        try:
+            if float(ts) < cutoff:
+                continue
+        except (TypeError, ValueError):
+            continue
+        for n, channels in _parse_newsletter_picks(txt):
+            if n not in by_n:
+                continue
+            key = f"nlarticle:{stamp}:angle{n}"
+            if ledger and not dry and ledger.seen(key):
+                continue
+            article = draft.newsletter_article(by_n[n], dry_run=dry)
+            body = (f"---\ntitle: {_first_line(article)}\n"
+                    f"channels: [{', '.join(channels)}]\n"
+                    f"angle: {by_n[n].get('angle', '')}\n---\n{article}")
+            if not dry:
+                (config.STATE_DIR / f"newsletter-draft-{stamp}-angle{n}.md").write_text(
+                    body, encoding="utf-8")
+            slack_io.send_message(
+                config.NEWSLETTER_SLACK_CHANNEL,
+                f"✍️ Newsletter draft ready (angle {n}) — channels: [{', '.join(channels)}]"
+                f"\n\n{article}\n\n↩️ Reply `publish` (in-thread) to ship it, or `hold`.",
+                dry_run=dry)
+            if ledger and not dry:
+                ledger.add_seen(key)
+            drafted.append(n)
+    return {"job": "newsletter_article_drafter",
+            "drafted": drafted or ["no new picks"]}
+
+
 JOBS = [
     Job("daily_scrape_draft", run_daily_scrape_draft, kind="daily_once",
         at=time(1, 0)),                                  # daily 01:00 (also drains)
     Job("approval_poller", run_approval_poller, kind="window_repeat",
         window=(time(6, 0), time(9, 0))),                # 06:00–09:00 (matches publish window)
+    Job("newsletter_article_drafter", run_newsletter_article_drafter, kind="window_repeat",
+        window=(time(0, 0), time(23, 59))),              # every tick: draft on a pick whenever it lands
     Job("health_alert", run_health_alert, kind="daily_once",
         at=time(6, 0)),                                  # first Window-B wake: recover/notify, never silent
     Job("token_dashboard", run_token_dashboard, kind="weekly_once",

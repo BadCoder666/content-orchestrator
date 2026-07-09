@@ -23,9 +23,11 @@ Claude-powered work (in-app Cowork tasks on a subscription, no metered API):
   Tradeoff: the Claude app must be running for these to fire. `claude -p` headless
   401s (subscription OAuth isn't available to background processes), so these stay
   in-app, not on launchd.
-- **API fallback:** set `config.DRAFT_BACKEND = "api"` (+ `ANTHROPIC_API_KEY`) to
-  move drafting back inline into the native job via `draft.py` — reversible if the
-  in-app task proves unreliable.
+- **API fallback:** set `DRAFT_BACKEND=api` (+ a `DRAFT_PROVIDERS` key) to move
+  drafting — digest, shortlist, and the article-on-pick — inline into the native
+  jobs via `draft.py`, fully headless. Provider-agnostic over any OpenAI-compatible
+  endpoint with an automatic failover chain (default `gemini,kimi`). Reversible if
+  the in-app task proves unreliable.
 
 ## Modules
 
@@ -36,7 +38,7 @@ jobs.py           the jobs + the manifest (JOBS)
 scraper.py        combined Chrome-free scraper → signals.db
 store.py          signals.db schema + upsert/dedupe/query
 rank.py           velocity / acceleration / project segregation
-draft.py          Anthropic API drafting (dry-run safe)
+draft.py          LLM drafting via OpenAI-compat chain, dry-run safe
 slack_io.py       Slack send/read + deterministic reply parser
 chrome_queue.py   file-handoff seam to the in-app Chrome tasks
 store_signal.py   CLI the in-app surfacers (LinkedIn, Reddit) use to write into signals.db

@@ -117,8 +117,8 @@ orchestrator/
    during the batch window, with a Wi-Fi→phone-hotspot fallback.
 7. **Wire the Claude side**: the prompts in `orchestrator/inapp_tasks/` are the
    Cowork scheduled tasks that do the drafting, surfacing, and publishing on your
-   subscription. (Or set `DRAFT_BACKEND=api` for fully-headless drafting via the
-   Anthropic API.)
+   subscription. (Or set `DRAFT_BACKEND=api` for fully-headless drafting via an
+   LLM API.)
 
 ## Drafting backend: `inapp` vs `api`
 
@@ -126,8 +126,17 @@ orchestrator/
   subscription (no API billing). Trade-off: it needs the Claude desktop app open;
   it can't run fully unattended with the lid shut. A morning `health_alert` job
   detects a missed draft and pings you to run it.
-- **`api`** — the native job drafts via the Anthropic API and posts itself. Fully
-  headless and unattended (small per-run cost; needs `ANTHROPIC_API_KEY`).
+- **`api`** — the native job drafts via an LLM API and posts itself (digest,
+  shortlist, **and** the article-on-pick — all headless). Fully unattended, small
+  per-run cost. **Provider-agnostic** over any OpenAI-compatible endpoint: set
+  `DRAFT_PROVIDERS` (default `gemini,kimi`) and the matching key(s); draft.py
+  tries them in order and **falls through on any error**, so the first is primary
+  and the rest are automatic fallbacks. Add `anthropic` to the chain to use Claude.
+
+  > **Gemini note:** `gemini-2.5-flash` is a *thinking* model — over the
+  > OpenAI-compat endpoint it will spend the whole token budget on reasoning and
+  > return a **truncated** draft unless you pass `reasoning_effort="none"`. The
+  > chain does this automatically for Gemini (see `config._DRAFT_SPECS`).
 
 ## Reliability
 
