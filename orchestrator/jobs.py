@@ -317,15 +317,24 @@ def run_health_alert(ctx: dict) -> dict:
     never silent."""
     now = ctx["now"]
     dry = ctx.get("dry_run", False)
+    ledger = ctx.get("ledger")
     day = now.date().isoformat()
     digest = config.DIGEST_INPUT_DIR / f"digest-{day}.json"
-    drafted = config.STATE_DIR / f"drafted-{day}"
     issues: list[str] = []
 
     if not digest.exists():
         issues.append("overnight scrape did not produce today's digest, and the 06:00 "
                       "recovery scrape failed too — check Wi-Fi and the dispatcher")
-    elif not drafted.exists():
+    elif config.DRAFT_BACKEND == "api":
+        # Headless api path: "posted" is signalled by daily_scrape_draft's
+        # post_once ledger-marking `daily:newsletter_digest:<day>` — there is NO
+        # Cowork `drafted-<day>` marker (that task is retired on this backend), so
+        # checking for it here would false-alarm every morning on a perfect run.
+        if not (ledger and ledger.seen(f"daily:newsletter_digest:{day}")):
+            issues.append("digest data is ready but the api drafter didn't post it — "
+                          "check the drafting provider key and the run log")
+    elif not (config.STATE_DIR / f"drafted-{day}").exists():
+        # in-app path: the Cowork draft-generator writes `drafted-<day>` on success.
         issues.append("digest data is ready but no draft was posted — Run-now the "
                       "draft-generator Cowork task to send today's digest + shortlist")
 

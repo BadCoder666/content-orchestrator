@@ -441,10 +441,11 @@ def test_health_alert():
     and (d) fall back to a LOCAL notification when Slack is unreachable."""
     from . import dispatcher
     with tempfile.TemporaryDirectory() as d:
-        orig_state, orig_digest = config.STATE_DIR, config.DIGEST_INPUT_DIR
+        orig_state, orig_digest, orig_backend = config.STATE_DIR, config.DIGEST_INPUT_DIR, config.DRAFT_BACKEND
         config.STATE_DIR = Path(d) / "state"
         config.DIGEST_INPUT_DIR = Path(d) / "din"
         config.STATE_DIR.mkdir(); config.DIGEST_INPUT_DIR.mkdir()
+        config.DRAFT_BACKEND = "inapp"   # cases (a)-(d) exercise the Cowork-marker path
         now = _dt(2025, 6, 16, 6, 0)
         day = now.date().isoformat()
         digest = config.DIGEST_INPUT_DIR / f"digest-{day}.json"
@@ -473,10 +474,24 @@ def test_health_alert():
             drafted.unlink(); send_ok[0] = False; sent.clear(); local.clear()
             jobs.run_health_alert({"now": now, "dry_run": False})
             check("health: local notify when Slack unreachable", len(local) == 1, str(local))
+            # (e) api backend: NO drafted-<day> marker exists — health must key off the
+            #     ledger, NOT cry wolf. Digest posted (ledger-marked) → silent/healthy;
+            #     digest present but unposted → alert WITHOUT the stale 'Run-now' text.
+            config.DRAFT_BACKEND = "api"; send_ok[0] = True
+            digest.write_text("{}")  # note: no drafted-<day> marker on the api path
+            led = Ledger(Path(d) / "hl.json"); led.add_seen(f"daily:newsletter_digest:{day}")
+            sent.clear()
+            r = jobs.run_health_alert({"now": now, "dry_run": False, "ledger": led})
+            check("health(api): silent when digest ledger-marked (no false alarm)",
+                  sent == [] and r["issues"] == ["healthy"], str(r))
+            sent.clear()
+            r = jobs.run_health_alert({"now": now, "dry_run": False, "ledger": Ledger(Path(d) / "hl2.json")})
+            check("health(api): alerts when unposted, without stale 'Run-now'",
+                  len(sent) == 1 and "Run-now" not in sent[0][1] and "api drafter" in sent[0][1], str(sent))
         finally:
             jobs.slack_io.send_message = orig_send
             dispatcher.notify_local = orig_notify
-            config.STATE_DIR, config.DIGEST_INPUT_DIR = orig_state, orig_digest
+            config.STATE_DIR, config.DIGEST_INPUT_DIR, config.DRAFT_BACKEND = orig_state, orig_digest, orig_backend
 
 
 def test_dark_window():
