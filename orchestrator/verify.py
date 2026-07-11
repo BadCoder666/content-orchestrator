@@ -407,12 +407,19 @@ def test_newsletter_article_drafter_on_pick():
         config.draft_providers = lambda: [{"name": "gemini", "base_url": "", "model": "m", "api_key": "k"}]
         now = _dt(2025, 6, 16, 7, 0)
         stamp = now.strftime("%y%m%d")
-        (Path(d) / f"newsletter-angles-{stamp}.json").write_text(_json.dumps(
+        import os as _os
+        af = Path(d) / f"newsletter-angles-{stamp}.json"
+        af.write_text(_json.dumps(
             [{"n": 4, "hook": "h4", "angle": "a4", "source": "u4"},
              {"n": 5, "hook": "h5", "angle": "a5", "source": "u5"}]))
-        pick_ts = str(now.timestamp() - 1800)
+        digest_time = now.timestamp() - 3600      # today's digest posted 1h before "now"
+        _os.utime(af, (digest_time, digest_time))
+        pick_ts = str(now.timestamp() - 1800)     # valid pick: AFTER the digest
+        stale_ts = str(now.timestamp() - 7200)    # stale "5" from before the digest → ignore
         sent, arts = [], []
-        jobs.slack_io.read_channel_deep = lambda *a, **k: [{"text": "4 to x", "ts": pick_ts}]
+        jobs.slack_io.read_channel_deep = lambda *a, **k: [
+            {"text": "4 to x", "ts": pick_ts},
+            {"text": "5", "ts": stale_ts}]
         jobs.slack_io.has_internet = lambda *a, **k: True
         jobs.slack_io.send_message = lambda ch, text, **k: sent.append(text) or {"ok": True}
         jobs.draft.newsletter_article = lambda idea, **k: arts.append(idea) or "# Orbital Taxis\nBody text."
@@ -425,6 +432,8 @@ def test_newsletter_article_drafter_on_pick():
              jobs.slack_io.read_channel_deep, jobs.slack_io.has_internet,
              jobs.slack_io.send_message, jobs.draft.newsletter_article) = orig
         check("drafts the picked angle once", r1.get("drafted") == [4], str(r1))
+        check("stale pre-digest pick ('5') ignored by the guard",
+              5 not in (r1.get("drafted") or []), str(r1))
         check("drafts from the picked angle's data", bool(arts) and arts[0].get("angle") == "a4", str(arts))
         df = Path(d) / f"newsletter-draft-{stamp}-angle4.md"
         check("writes the angle's draft file", df.exists())

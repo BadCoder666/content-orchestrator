@@ -380,7 +380,15 @@ def run_newsletter_article_drafter(ctx: dict) -> dict:
     except (OSError, ValueError, json.JSONDecodeError):
         return {"job": "newsletter_article_drafter", "note": "angles unreadable"}
 
-    cutoff = now.timestamp() - 36 * 3600  # ignore stale replies (replayed history)
+    # A pick only counts if it POST-DATES today's digest: a bare "5" left over from
+    # a PRIOR day's digest must not draft today's (differently-numbered) angle 5.
+    # The angles file's mtime ≈ when today's digest was posted; require the reply
+    # to be newer than that (with a small skew), AND recent (replay guard).
+    try:
+        digest_ts = angles_file.stat().st_mtime
+    except OSError:
+        digest_ts = 0.0
+    cutoff = max(now.timestamp() - 36 * 3600, digest_ts - 60)
     drafted: list[int] = []
     for m in slack_io.read_channel_deep(config.NEWSLETTER_SLACK_CHANNEL, dry_run=dry):
         txt, ts = m.get("text", ""), m.get("ts", "")
